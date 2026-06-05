@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BimaFast — Embedded Daily Micro-Insurance</title>
+  <meta name="description" content="BimaFast is a daily micro-insurance platform for gig workers in East Africa. AI-powered claims, instant M-Pesa payouts, and multilingual support." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Auth screen injected here by auth.js -->
+
+  <!-- ===== MAIN APP WRAPPER (hidden until auth) ===== -->
+  <div id="main-app-wrapper" class="hidden">
+
+    <!-- Background Orbs -->
+    <div class="bg-orbs" aria-hidden="true">
+      <div class="orb orb-1"></div>
+      <div class="orb orb-2"></div>
+      <div class="orb orb-3"></div>
+    </div>
+
+    <!-- ===== SITE HEADER ===== -->
+    <header class="site-header">
+      <div class="header-brand">
+        <div class="brand-logo">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <path d="m9 12 2 2 4-4"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <span class="brand-name">BimaFast</span>
+          <span class="brand-tagline">Micro-Insurance for Gig Workers</span>
+        </div>
+      </div>
+
+      <!-- Portal switcher -->
+      <nav class="portal-nav" role="navigation" aria-label="Portal switcher">
+        <button id="nav-rider" class="nav-btn active" onclick="switchPortal('rider')" aria-pressed="true">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg>
+          Rider Dashboard
+        </button>
+        <button id="nav-hospital" class="nav-btn" onclick="switchPortal('hospital')" aria-pressed="false">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14h-5v5h-4v-5H5v-4h5V5h4v5h5z"/></svg>
+          Hospital Terminal
+        </button>
+        <button id="nav-admin" class="nav-btn" onclick="switchPortal('admin')" aria-pressed="false">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          Admin Console
+        </button>
+      </nav>
+
+      <!-- User session info + Logout -->
+      <div class="header-session-bar">
+        <div class="session-user-chip" id="session-user-chip">
+          <div class="session-avatar" id="session-avatar">--</div>
+          <div class="session-info">
+            <span class="session-name" id="session-name">Not logged in</span>
+            <span class="session-role" id="session-role">—</span>
+          </div>
+        </div>
+        <div id="api-status-dot" class="api-dot dot-live" title="Gemini AI Live"></div>
+        <span id="api-status-label" class="api-status-label">Live AI</span>
+        <button class="logout-btn" id="logout-btn" onclick="Auth.logout()" title="Sign Out">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- ===== MAIN CONTENT ===== -->
+    <main class="main-content">
+
+      <!-- ================================================ -->
+      <!-- PORTAL 1: RIDER / CUSTOMER DASHBOARD             -->
+      <!-- ================================================ -->
+      <section id="portal-rider" class="portal active" aria-label="Rider Dashboard">
+
+        <div class="portal-layout-rider">
+
+          <!-- LEFT COLUMN: Phone Mockup -->
+          <div class="phone-column">
+            <div class="phone-mockup">
+              <div class="phone-notch"></div>
+              <div class="phone-screen">
+
+                <!-- Phone Tabs -->
+                <div class="phone-tab-bar">
+                  <button id="ptab-home" class="phone-tab active" onclick="switchPhoneTab('home')" aria-pressed="true">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                    Home
+                  </button>
+                  <button id="ptab-claims" class="phone-tab" onclick="switchPhoneTab('claims')" aria-pressed="false">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                    Claims
+                  </button>
+                  <button id="ptab-chat" class="phone-tab ai-tab" onclick="switchPhoneTab('chat')" aria-pressed="false">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="m12 8.5.8 1.7 1.7.8-1.7.8-.8 1.7-.8-1.7-1.7-.8 1.7-.8z"/></svg>
+                    AI Chat
+                  </button>
+                </div>
+
+                <!-- === HOME TAB === -->
+                <div id="phone-home" class="phone-view active">
+                  <div class="phone-header-strip">
+                    <div class="rider-avatar">JK</div>
+                    <div class="rider-info">
+                      <span class="rider-name">John Kamau</span>
+                      <span class="rider-phone">+254 712 345 678</span>
+                    </div>
+                    <div id="coverage-badge" class="coverage-badge expired">
+                      <span class="badge-dot"></span>
+                      <span id="badge-text">EXPIRED</span>
+                    </div>
+                  </div>
+
+                  <!-- Countdown Timer -->
+                  <div id="coverage-timer-card" class="coverage-card expired-card">
+                    <div class="coverage-card-label">Coverage Expires In</div>
+                    <div id="coverage-countdown" class="coverage-countdown">00:00:00</div>
+                    <div id="coverage-subtext" class="coverage-subtext">No active cover — take a ride to activate!</div>
+                  </div>
+
+                  <!-- Wallet -->
+                  <div class="wallet-card">
+                    <div class="wallet-header">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3H8L2 7h20z"/></svg>
+                      M-Pesa Wallet
+                    </div>
+                    <div class="wallet-balance-row">
+                      <span class="wallet-currency">KES</span>
+                      <span id="rider-wallet" class="wallet-amount">2,500</span>
+                      <button class="wallet-withdraw-btn" onclick="openWithdrawModal()">Withdraw</button>
+                    </div>
+                    <div class="wallet-sub">Available Balance</div>
+                  </div>
+
+                  <!-- Ride Simulator -->
+                  <div class="sim-card">
+                    <div class="sim-title">Simulate a Transaction</div>
+                    <div class="sim-subtitle">Premium (KES <span id="premium-display-rider">25</span>) auto-deducted. Cover extended +24h.</div>
+                    <div class="sim-buttons">
+                      <button class="sim-btn boda" onclick="triggerDeduction('boda')" id="btn-boda">
+                        <span class="sim-btn-icon">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="18" r="3"/><circle cx="18" cy="18" r="3"/><path d="M12 12H9l-3-6h4l2 6z"/><path d="M12 12V8h5v4z"/></svg>
+                        </span>
+                        <span class="sim-btn-label">Boda Ride</span>
+                        <span class="sim-btn-cost">KES 150</span>
+                      </button>
+                      <button class="sim-btn delivery" onclick="triggerDeduction('delivery')" id="btn-delivery">
+                        <span class="sim-btn-icon">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                        </span>
+                        <span class="sim-btn-label">Delivery</span>
+                        <span class="sim-btn-cost">KES 350</span>
+                      </button>
+                      <button class="sim-btn taxi" onclick="triggerDeduction('taxi')" id="btn-taxi">
+                        <span class="sim-btn-icon">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg>
+                        </span>
+                        <span class="sim-btn-label">Taxi Trip</span>
+                        <span class="sim-btn-cost">KES 200</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Toast Notification Area -->
+                  <div id="rider-toast" class="rider-toast hidden"></div>
+                </div>
+
+                <!-- === CLAIMS TAB === -->
+                <div id="phone-claims" class="phone-view hidden">
+                  <div class="claims-screen-title-strip">
+                    <span class="claims-screen-title">Claims Center</span>
+                    <button id="toggle-file-claim-btn" class="claims-action-pill-btn" onclick="toggleRiderClaimForm()">+ File Claim</button>
+                  </div>
+                  
+                  <!-- Rider Claim Form Panel (Initially Hidden) -->
+                  <div id="rider-claim-form-panel" class="rider-claim-form-panel hidden">
+                    <p class="rider-form-desc">File a hospital cash claim using your discharge note. Our AI claims auditor will process it instantly.</p>
+                    <div class="form-group" style="margin-bottom: 0.6rem;">
+                      <label for="rider-note-input" class="form-label" style="font-size: 0.65rem;">Discharge Note / Clinical Summary</label>
+                      <textarea id="rider-note-input" class="form-textarea" rows="4" style="font-size: 0.75rem; min-height: 80px;" placeholder="Patient John Kamau was admitted with severe malaria on June 1st and discharged on June 4th (3 nights)..."></textarea>
+                    </div>
+                    <div class="rider-form-buttons">
+                      <button class="rider-btn-cancel" onclick="toggleRiderClaimForm()">Cancel</button>
+                      <button id="rider-claim-submit-btn" class="rider-btn-submit" onclick="submitRiderClaim()">
+                        Audit &amp; Submit
+                        <div id="rider-audit-spinner" class="btn-spinner hidden"></div>
+                      </button>
+                    </div>
+                    <div id="rider-claim-result" class="admit-result hidden" style="margin-top: 0.5rem; padding: 0.5rem; font-size: 0.72rem;"></div>
+                  </div>
+
+                  <!-- Claims List -->
+                  <div id="claims-list" class="claims-list">
+                    <div class="claims-empty-state">
+                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                      <p>No claims yet</p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- === AI CHAT TAB === -->
+                <div id="phone-chat" class="phone-view hidden">
+                  <div class="chat-screen-header">
+                    <div class="ai-avatar">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275Z"/></svg>
+                    </div>
+                    <div class="chat-header-info">
+                      <span class="chat-agent-name">Bima Assistant</span>
+                      <span class="chat-agent-sub">Powered by Gemini AI</span>
+                    </div>
+                    <div id="chat-mode-badge" class="chat-mode-badge live">LIVE</div>
+                  </div>
+
+                  <div id="chat-messages" class="chat-messages">
+                    <div class="chat-bubble agent">
+                      <p>Hello! I am your Bima Assistant. Ask me anything about your coverage, premiums, or claims — in English, Swahili, or Sheng.</p>
+                    </div>
+                  </div>
+
+                  <div class="chat-quick-chips">
+                    <button class="chip" onclick="sendQuickChat('Niko covered leo?')">Niko covered?</button>
+                    <button class="chip" onclick="sendQuickChat('What is my daily payout?')">Daily payout?</button>
+                    <button class="chip" onclick="sendQuickChat('Bei ya premium ni ngapi?')">Premium rate?</button>
+                  </div>
+
+                  <div class="chat-input-bar">
+                    <input type="text" id="chat-input" class="chat-input" placeholder="Type a question..." onkeydown="if(event.key==='Enter') sendChatMessage()" />
+                    <button class="chat-send-btn" onclick="sendChatMessage()" aria-label="Send message">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    </button>
+                  </div>
+                </div>
+
+              </div><!-- /phone-screen -->
+              <div class="phone-home-bar"></div>
+            </div><!-- /phone-mockup -->
+          </div>
+
+          <!-- RIGHT COLUMN: Rider Details -->
+          <div class="rider-details-column">
+            <div class="section-header">
+              <h1 class="section-title">Rider Dashboard</h1>
+              <p class="section-desc">John Kamau's BimaFast micro-insurance account. Daily cover auto-activates with every transaction.</p>
+            </div>
+
+            <div class="detail-cards-grid">
+              <div class="detail-card">
+                <div class="detail-card-label">Cover Status</div>
+                <div id="cover-status-detail" class="detail-card-value status-expired">EXPIRED</div>
+              </div>
+              <div class="detail-card">
+                <div class="detail-card-label">Daily Payout</div>
+                <div class="detail-card-value">KES <span id="payout-display">5,000</span>/night</div>
+              </div>
+              <div class="detail-card">
+                <div class="detail-card-label">Premium Rate</div>
+                <div class="detail-card-value">KES <span id="premium-display-detail">25</span>/ride</div>
+              </div>
+              <div class="detail-card">
+                <div class="detail-card-label">Total Premiums Paid</div>
+                <div class="detail-card-value">KES <span id="total-premiums-paid">0</span></div>
+              </div>
+            </div>
+
+            <div class="transaction-log-card">
+              <div class="log-header">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                Transaction History
+              </div>
+              <div id="transaction-log" class="transaction-log">
+                <p class="log-empty">No transactions yet. Take a ride to start coverage!</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ================================================ -->
+      <!-- PORTAL 2: HOSPITAL / MEDICAL FACILITY PORTAL     -->
+      <!-- ================================================ -->
+      <section id="portal-hospital" class="portal hidden" aria-label="Hospital Portal">
+
+        <div class="portal-header-block">
+          <div class="portal-icon-block hospital-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14h-5v5h-4v-5H5v-4h5V5h4v5h5z"/></svg>
+          </div>
+          <div>
+            <h1 class="portal-title">Nairobi General Hospital</h1>
+            <p class="portal-subtitle">Medical Facility Terminal · BimaFast Partner Network</p>
+          </div>
+        </div>
+
+        <!-- Admission Mode Toggle -->
+        <div class="admission-mode-toggle">
+          <button id="mode-structured" class="mode-toggle-btn active" onclick="setAdmissionMode('structured')" aria-pressed="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><polyline points="9 11 12 14 22 4"/></svg>
+            Structured Admission
+          </button>
+          <button id="mode-ai" class="mode-toggle-btn" onclick="setAdmissionMode('ai')" aria-pressed="false">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="m10 13 .5 1 .5-1 .5-.5-.5-.5-.5.5zm1.5 3 .3.7.7.3-.7.3-.3.7-.3-.7-.7-.3.7-.3z"/></svg>
+            AI Doctor Note Audit
+            <span class="ai-badge-inline">Gemini</span>
+          </button>
+        </div>
+
+        <div class="hospital-layout">
+
+          <!-- STRUCTURED ADMISSION FORM -->
+          <div id="structured-admission-panel" class="hospital-panel">
+            <div class="panel-card">
+              <div class="panel-card-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+                New Patient Admission
+              </div>
+
+              <div class="form-group">
+                <label for="patient-phone" class="form-label">Patient Phone Number</label>
+                <input type="tel" id="patient-phone" class="form-input" placeholder="+254712345678" value="+254712345678" />
+              </div>
+
+              <div class="form-group">
+                <label for="admission-diagnosis" class="form-label">Primary Diagnosis</label>
+                <select id="admission-diagnosis" class="form-input">
+                  <option value="Acute Malaria">Acute Malaria</option>
+                  <option value="Road Traffic Accident">Road Traffic Accident</option>
+                  <option value="Pneumonia">Pneumonia</option>
+                  <option value="Typhoid Fever">Typhoid Fever</option>
+                  <option value="Appendicitis">Appendicitis</option>
+                  <option value="Fracture">Fracture / Orthopaedic</option>
+                  <option value="Maternity">Maternity / Delivery</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="admission-nights" class="form-label">Admitted Nights</label>
+                <div class="nights-stepper">
+                  <button class="stepper-btn" onclick="changeNights(-1)" aria-label="Decrease nights">−</button>
+                  <span id="nights-value" class="nights-value">3</span>
+                  <button class="stepper-btn" onclick="changeNights(1)" aria-label="Increase nights">+</button>
+                </div>
+              </div>
+
+              <button class="action-btn admit-btn" id="admit-btn" onclick="admitPatient()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                Verify &amp; Admit Patient
+              </button>
+
+              <div id="admit-result" class="admit-result hidden"></div>
+            </div>
+          </div>
+
+          <!-- AI DOCTOR NOTE AUDIT PANEL -->
+          <div id="ai-audit-panel" class="hospital-panel hidden">
+            <div class="panel-card">
+              <div class="panel-card-title ai-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>
+                AI Clinical Note Auditor
+                <span class="gemini-badge">✦ Gemini AI</span>
+              </div>
+              <p class="panel-desc">Paste a raw doctor's discharge note below. Gemini will extract structured admission data and validate the claim automatically.</p>
+
+              <div class="form-group">
+                <label for="doctor-note-input" class="form-label">Doctor's Discharge Note</label>
+                <textarea id="doctor-note-input" class="form-textarea" rows="5" placeholder="Patient John Kamau presented with severe vomiting. Diagnosed with Acute Malaria. Admitted on June 2nd, discharged June 5th (3 nights). Underwent active clinical observation..."></textarea>
+              </div>
+
+              <button class="action-btn ai-audit-btn" id="ai-audit-btn" onclick="runAiAudit()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                AI Verify Admission
+                <div id="audit-spinner" class="btn-spinner hidden"></div>
+              </button>
+
+              <!-- AI Audit Log Console -->
+              <div id="ai-audit-log" class="ai-audit-log hidden">
+                <div class="audit-log-header">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                  Gemini API Response Console
+                  <span id="audit-mode-tag" class="audit-mode-tag live">LIVE</span>
+                </div>
+                <div class="audit-log-section">
+                  <div class="audit-log-label">▸ Extracted JSON:</div>
+                  <pre id="audit-json-output" class="audit-json-pre"></pre>
+                </div>
+                <div class="audit-log-section">
+                  <div class="audit-log-label">▸ Validation Result:</div>
+                  <div id="audit-validation-result" class="audit-validation-result"></div>
+                </div>
+              </div>
+
+              <div id="ai-admit-result" class="admit-result hidden"></div>
+            </div>
+          </div>
+
+          <!-- ACTIVE ADMISSIONS LIST -->
+          <div class="hospital-panel">
+            <div class="panel-card">
+              <div class="panel-card-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                Active Admissions
+              </div>
+              <div id="admissions-list" class="admissions-list">
+                <div class="admissions-empty">No active admissions on record.</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ================================================ -->
+      <!-- PORTAL 3: ADMIN / ANALYTICS PORTAL               -->
+      <!-- ================================================ -->
+      <section id="portal-admin" class="portal hidden" aria-label="Admin Analytics Portal">
+
+        <div class="portal-header-block">
+          <div class="portal-icon-block admin-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          </div>
+          <div>
+            <h1 class="portal-title">Insurtech Analytics</h1>
+            <p class="portal-subtitle">BimaFast Admin Dashboard · Real-time Portfolio Intelligence</p>
+          </div>
+        </div>
+
+        <!-- Metrics Row -->
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div class="metric-icon" style="background: rgba(16,185,129,0.15); color: #10b981;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <div class="metric-info">
+              <div class="metric-label">Active Policies</div>
+              <div id="metric-active-policies" class="metric-value">0</div>
+            </div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-icon" style="background: rgba(14,165,233,0.15); color: #0ea5e9;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>
+            </div>
+            <div class="metric-info">
+              <div class="metric-label">Total Premiums</div>
+              <div class="metric-value">KES <span id="metric-premiums">0</span></div>
+            </div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-icon" style="background: rgba(245,158,11,0.15); color: #f59e0b;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <div class="metric-info">
+              <div class="metric-label">Benefits Paid Out</div>
+              <div class="metric-value">KES <span id="metric-payouts">0</span></div>
+            </div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-icon" style="background: rgba(239,68,68,0.15); color: #ef4444;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            </div>
+            <div class="metric-info">
+              <div class="metric-label">Loss Ratio</div>
+              <div id="metric-loss-ratio" class="metric-value">0%</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-layout">
+
+          <!-- LEFT: Config + AI Advisor + Controls -->
+          <div class="admin-left-col">
+
+            <!-- System Config -->
+            <div class="admin-card">
+              <div class="admin-card-title">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+                System Configuration
+              </div>
+              <div class="config-row">
+                <label class="config-label">Premium per ride (KES)</label>
+                <div class="config-control">
+                  <input type="range" id="premium-slider" min="10" max="50" value="25" class="range-slider" oninput="updatePremium(this.value)" />
+                  <span id="premium-slider-val" class="range-val">25</span>
+                </div>
+              </div>
+              <div class="config-row">
+                <label class="config-label">Daily Payout per night (KES)</label>
+                <div class="config-control">
+                  <input type="range" id="payout-slider" min="2000" max="10000" step="500" value="5000" class="range-slider" oninput="updatePayout(this.value)" />
+                  <span id="payout-slider-val" class="range-val">5,000</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Developer / Action Controls -->
+            <div class="admin-card">
+              <div class="admin-card-title">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>
+                Platform Controls
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                <button class="btn-primary" onclick="exportAdminReport()" style="width: 100%; font-size: 0.82rem; background: linear-gradient(135deg, var(--blue), hsl(var(--h-info), var(--s-info), calc(var(--l-info) - 8%))); border-color: rgba(59, 130, 246, 0.4); box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 2px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  Export Portfolio Report
+                </button>
+                <button class="btn-secondary" onclick="resetDemoData()" style="width: 100%; font-size: 0.82rem;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 2px;"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                  Reset System State
+                </button>
+              </div>
+            </div>
+
+            <!-- AI Risk Advisor Card -->
+            <div class="admin-card ai-advisor-card">
+              <div class="admin-card-title ai-title">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 1 17.072 0l-.548.547A3.374 3.374 0 0 0 14 18.469V19a2 2 0 1 1-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                AI Risk Advisor
+                <span class="gemini-badge">✦ Gemini</span>
+              </div>
+              <p class="panel-desc">Gemini analyzes your portfolio metrics and returns strategic sustainability recommendations.</p>
+              <button class="action-btn risk-btn" id="risk-analysis-btn" onclick="runRiskAnalysis()">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                Analyze Portfolio Risk
+                <div id="risk-spinner" class="btn-spinner hidden"></div>
+              </button>
+
+              <div id="risk-report-container" class="risk-report hidden">
+                <div class="risk-report-header">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  Gemini Risk Assessment Report
+                  <span id="risk-mode-tag" class="audit-mode-tag live">LIVE</span>
+                </div>
+                <div id="risk-report-content" class="risk-report-content"></div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- RIGHT: SVG Chart + Live Event Stream -->
+          <div class="admin-right-col">
+            <!-- Sustainability Chart Card -->
+            <div class="admin-card chart-card" style="margin-bottom: 0px;">
+              <div class="admin-card-title">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+                Portfolio Sustainability Chart
+              </div>
+              <div class="chart-container">
+                <svg id="admin-sustainability-chart" width="100%" height="160" viewBox="0 0 400 160" preserveAspectRatio="none">
+                  <!-- SVG elements drawn dynamically in JS -->
+                </svg>
+                <div class="chart-legend">
+                  <span class="legend-item"><span class="legend-dot premiums"></span>Premiums Collected</span>
+                  <span class="legend-item"><span class="legend-dot benefits"></span>Benefits Disbursed</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Live Event Stream Card -->
+            <div class="admin-card event-stream-card">
+              <div class="admin-card-title">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Live Audit Event Stream
+                <span class="live-indicator"><span class="live-dot"></span>LIVE</span>
+              </div>
+              <div id="event-stream" class="event-stream">
+                <div class="event-stream-empty">System initialized. Awaiting events...</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+    </main>
+
+    <!-- ===== WITHDRAW MODAL ===== -->
+    <div id="withdraw-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="withdraw-modal-title">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+          </div>
+          <div>
+            <h2 id="withdraw-modal-title" class="modal-title">M-Pesa Cash Withdrawal</h2>
+            <p class="modal-subtitle">Transfer funds from your BimaFast wallet</p>
+          </div>
+          <button class="modal-close-btn" onclick="closeWithdrawModal()" aria-label="Close modal">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="withdraw-amount-input" class="form-label">Amount (KES)</label>
+            <input type="number" id="withdraw-amount-input" class="form-input" placeholder="e.g. 1000" min="50" max="50000" />
+            <p class="field-hint">Minimum withdrawal: KES 50. Maximum: KES 50,000.</p>
+          </div>
+          <div class="form-group">
+            <label for="withdraw-phone-input" class="form-label">Recipient M-Pesa Number</label>
+            <input type="tel" id="withdraw-phone-input" class="form-input" value="+254712345678" placeholder="+254712345678" />
+          </div>
+          <div id="withdraw-modal-status" class="admit-result hidden"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-secondary" onclick="closeWithdrawModal()">Cancel</button>
+          <button id="btn-withdraw-submit" class="btn-primary" onclick="submitWithdrawal()">Confirm Withdrawal</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main-app-wrapper -->
+
+  <!-- Global Toast -->
+  <div id="global-toast" class="global-toast hidden" role="alert" aria-live="polite"></div>
+
+  <script src="auth.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
