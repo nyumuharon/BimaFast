@@ -110,3 +110,27 @@ npm run dev
 ```
 
 Open **`http://localhost:3000`** in your browser.
+
+### 3. Deploy to Render (preferred)
+This project is configured to deploy on Render. Use the following steps:
+
+1. Create a new **Web Service** on Render and connect your GitHub repository (branch: `main`).
+2. Use the following build and start commands:
+
+```bash
+# Build
+npm install
+# Start (Render uses this to run the service)
+npm start
+```
+
+3. Add the required environment variables in the Render Dashboard (do NOT commit them to Git):
+- `GEMINI_API_KEY` — your Gemini API key
+- `GEMINI_MODEL` — `gemini-2.5-flash`
+- `PORT` — `3000` (Render will normally supply a `PORT` env; use their value)
+
+4. Redeploy the service from the Render dashboard.
+
+Note: A `render.yaml` manifest is included in the repository for Render service provisioning. After creating the service, set secrets in the Render dashboard before deploying.
+
+**Important:** This repository is now targeted for deployment on Render; do not deploy to Vercel.

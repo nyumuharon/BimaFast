@@ -1,4 +1,9 @@
 {
-  "deprecated": true,
-  "note": "This repository is configured to deploy on Render. Do not deploy to Vercel."
+  "version": 2,
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index.js"
+    }
+  ]
 }
