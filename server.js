@@ -119,38 +119,75 @@ app.post('/api/gemini-key', (req, res) => {
 
 // ── /api/generate  (server-side proxy to Google Gemini)
 app.post('/api/generate', async (req, res) => {
-  try {
-    const key = process.env.GEMINI_API_KEY || '';
-    if (!key || key.includes('REPLACE_WITH')) {
-      return res.status(503).json({ error: 'Gemini API key not configured on server' });
+  // Server-side retries with exponential backoff and optional mock fallback
+  const key = process.env.GEMINI_API_KEY || '';
+  if (!key || key.includes('REPLACE_WITH')) {
+    return res.status(503).json({ error: 'Gemini API key not configured on server' });
+  }
+
+  const { prompt, systemInstruction, responseSchema, modelName } = req.body;
+  const modelToUse = modelName || process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${modelToUse}:generateContent?key=${key}`;
+
+  const requestBody = {
+    systemInstruction: systemInstruction ? { parts: [{ text: systemInstruction }] } : undefined,
+    contents: Array.isArray(prompt) ? prompt : [{ role: 'user', parts: [{ text: prompt }] }],
+    generationConfig: responseSchema ? {
+      response_mime_type: 'application/json',
+      response_schema: responseSchema,
+      temperature: 0.2,
+    } : { temperature: 0.8 },
+  };
+
+  async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  async function fetchWithRetries(url, opts, attempts = 3, baseDelay = 500) {
+    let lastErr;
+    for (let i = 0; i < attempts; i++) {
+      try {
+        const r = await fetch(url, opts);
+        // If rate-limited or server error, retry
+        if (r.status === 429 || r.status >= 500) {
+          lastErr = r;
+          const wait = baseDelay * Math.pow(2, i);
+          await sleep(wait);
+          continue;
+        }
+        return r;
+      } catch (err) {
+        lastErr = err;
+        const wait = baseDelay * Math.pow(2, i);
+        await sleep(wait);
+      }
     }
+    throw lastErr;
+  }
 
-    const { prompt, systemInstruction, responseSchema, modelName } = req.body;
-    const modelToUse = modelName || process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-    const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${modelToUse}:generateContent?key=${key}`;
-
-    const requestBody = {
-      systemInstruction: systemInstruction ? { parts: [{ text: systemInstruction }] } : undefined,
-      contents: Array.isArray(prompt) ? prompt : [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: responseSchema ? {
-        response_mime_type: 'application/json',
-        response_schema: responseSchema,
-        temperature: 0.2,
-      } : { temperature: 0.8 },
-    };
-
-    const r = await fetch(GEMINI_URL, {
+  try {
+    const r = await fetchWithRetries(GEMINI_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(requestBody),
-    });
+    }, 3, 500);
 
     const body = await r.text();
-    // Proxy status and body back to client
     return res.status(r.status).send(body);
   } catch (err) {
-    console.error('Error proxying to Gemini:', err);
-    return res.status(500).json({ error: 'Server error contacting Gemini' });
+    console.error('Error proxying to Gemini after retries:', err);
+
+    const enableMock = String(process.env.ENABLE_MOCK_FALLBACK || 'false').toLowerCase() === 'true';
+    if (enableMock) {
+      // Produce a small deterministic mock response that resembles Gemini's shape
+      const inputText = Array.isArray(prompt) ? (prompt[0]?.parts?.[0]?.text || '') : (String(prompt || '')).slice(0, 400);
+      const mockText = JSON.stringify({
+        candidates: [{
+          content: { parts: [{ text: `MOCK RESPONSE: The AI is currently unavailable. Fallback summary of input:\n${inputText.substring(0, 300)}...` }] }
+        }]
+      });
+      return res.status(200).send(mockText);
+    }
+
+    return res.status(502).json({ error: 'Failed to contact Gemini after retries', details: String(err && err.message ? err.message : err) });
   }
 });
 

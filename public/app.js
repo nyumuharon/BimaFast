@@ -220,44 +220,85 @@ function updateChatModeBadge() {
 // GEMINI API CORE CALLER
 // ============================================================
 async function callGeminiAPI(prompt, systemInstruction = '', responseSchema = null) {
-  // Call server-side proxy endpoint which uses the server GEMINI_API_KEY
   const modelToUse = state.gemini.modelName || 'gemini-2.5-flash';
-  try {
-    const response = await fetch('/api/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, systemInstruction, responseSchema, modelName: modelToUse }),
-    });
 
-    const text = await response.text();
+  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-    if (!response.ok) {
-      const message = text || `HTTP ${response.status}`;
-      if (response.status === 429 || String(message).toLowerCase().includes('quota') || String(message).toLowerCase().includes('rate-limit')) {
-        state.gemini.mode = 'offline';
-        updateApiStatusUI();
-        showGlobalToast('Gemini quota exceeded or rate-limited — switched to offline mode. Please check billing or rotate the API key.', 'error');
-        throw new Error('GEMINI_QUOTA_EXCEEDED: ' + message);
+  async function mockFallback(input, schema) {
+    // Lightweight client-side mock fallback when server/Gemini unavailable
+    const inputText = Array.isArray(input) ? (input[0]?.parts?.[0]?.text || '') : String(input || '');
+    if (schema && typeof schema === 'object') {
+      // Return a minimal plausible JSON for the common claim-audit schema
+      try {
+        const mockObj = {
+          patient_name: 'UNKNOWN',
+          diagnosis: 'Clinical note unavailable',
+          admission_nights: 1,
+          clinical_indicators: [],
+          claim_decision: 'REJECTED',
+          confidence_score: 0.5,
+          payout_amount_kes: state.admin.payoutPerNight || 0,
+          rejection_reason: 'AI unavailable — fallback mock used',
+        };
+        return JSON.stringify(mockObj);
+      } catch (e) {
+        return JSON.stringify({ message: 'mock fallback' });
       }
-      throw new Error(message);
     }
+    return `MOCK: Gemini unavailable. Summary of input: ${inputText.substring(0, 300)}...`;
+  }
 
-    // The proxy returns the same Gemini response body (JSON). Parse and extract text if present.
+  const maxAttempts = 3;
+  const baseDelay = 400; // ms
+  let lastErr = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      const data = JSON.parse(text);
-      const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!rawText) throw new Error('Empty response from Gemini');
-      return rawText;
-    } catch (e) {
-      // If non-JSON (unexpected), return raw text
-      return text;
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, systemInstruction, responseSchema, modelName: modelToUse }),
+      });
+
+      const text = await response.text();
+
+      if (!response.ok) {
+        const message = text || `HTTP ${response.status}`;
+        if (response.status === 429 || String(message).toLowerCase().includes('quota') || String(message).toLowerCase().includes('rate-limit')) {
+          state.gemini.mode = 'offline';
+          updateApiStatusUI();
+          showGlobalToast('Gemini quota exceeded or rate-limited — switched to offline mode. Please check billing or rotate the API key.', 'error');
+          throw new Error('GEMINI_QUOTA_EXCEEDED: ' + message);
+        }
+        throw new Error(message);
+      }
+
+      try {
+        const data = JSON.parse(text);
+        const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!rawText) throw new Error('Empty response from Gemini');
+        return rawText;
+      } catch (e) {
+        // Non-JSON or unexpected shape; return raw text
+        return text;
+      }
+    } catch (err) {
+      lastErr = err;
+      console.warn(`Gemini proxy attempt ${attempt} failed:`, err && err.message ? err.message : err);
+      if (attempt < maxAttempts) {
+        const wait = baseDelay * Math.pow(2, attempt - 1);
+        await sleep(wait);
+        continue;
+      }
+
+      // All retries exhausted — use client-side mock fallback
+      console.error('All Gemini attempts failed, using local mock fallback.', lastErr);
+      state.gemini.mode = 'offline';
+      updateApiStatusUI();
+      showGlobalToast('All AI attempts failed; using local mock fallback.', 'warn');
+      const mock = await mockFallback(prompt, responseSchema);
+      return mock;
     }
-  } catch (err) {
-    console.error('callGeminiAPI proxy error:', err);
-    state.gemini.mode = 'offline';
-    updateApiStatusUI();
-    showGlobalToast('Gemini API error — switched to offline mode. Check server API key and billing.', 'error');
-    throw err;
   }
 }
 
