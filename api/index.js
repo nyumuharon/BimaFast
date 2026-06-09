@@ -27,7 +27,8 @@ app.use(cors());
 app.use(express.json());
 
 // ── Static Files ───────────────────────────────────────────────────────────────
-// (Static files are served by Vercel natively via /public folder)
+// Serve static files from the /public directory
+app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // ── /api/config  (safe config delivery — no secrets exposed beyond what's needed) ──
 app.get('/api/config', (req, res) => {
@@ -113,6 +114,11 @@ app.post('/api/gemini-key', (req, res) => {
   } catch {
     res.status(401).json({ error: 'Invalid token' });
   }
+});
+
+// ── Catch-all (SPA fallback) ──────────────────────────────────────────────────
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 
 // ── Start (Only if not running on Vercel) ───────────────────────────────────────
