@@ -28,7 +28,7 @@ app.use(express.json());
 
 // ── Static Files ───────────────────────────────────────────────────────────────
 // Serves everything inside /bima-fast as the web root
-app.use(express.static(path.join(__dirname, 'bima-fast')));
+app.use(express.static(path.join(__dirname, '..', 'bima-fast')));
 
 // ── /api/config  (safe config delivery — no secrets exposed beyond what's needed) ──
 app.get('/api/config', (req, res) => {
@@ -118,7 +118,7 @@ app.post('/api/gemini-key', (req, res) => {
 
 // ── Catch-all → serve index.html (SPA fallback) ───────────────────────────────
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'bima-fast', 'index.html'));
+  res.sendFile(path.join(__dirname, '..', 'bima-fast', 'index.html'));
 });
 
 // ── Start ──────────────────────────────────────────────────────────────────────
