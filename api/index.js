@@ -27,8 +27,7 @@ app.use(cors());
 app.use(express.json());
 
 // ── Static Files ───────────────────────────────────────────────────────────────
-// Serves everything inside /bima-fast as the web root
-app.use(express.static(path.join(__dirname, '..', 'public')));
+// (Static files are served by Vercel natively via /public folder)
 
 // ── /api/config  (safe config delivery — no secrets exposed beyond what's needed) ──
 app.get('/api/config', (req, res) => {
@@ -116,27 +115,11 @@ app.post('/api/gemini-key', (req, res) => {
   }
 });
 
-// ── Catch-all → serve index.html (SPA fallback) ───────────────────────────────
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
-});
-
-// ── Start ──────────────────────────────────────────────────────────────────────
-app.listen(PORT, () => {
-  console.log('\n');
-  console.log('  ╔═══════════════════════════════════════╗');
-  console.log('  ║     BimaFast Server  v2.0.0           ║');
-  console.log(`  ║     http://localhost:${PORT}             ║`);
-  console.log('  ╚═══════════════════════════════════════╝');
-  console.log('\n  Ready. Open http://localhost:' + PORT + ' in your browser.\n');
-
-  const geminiKey = process.env.GEMINI_API_KEY || '';
-  if (!geminiKey || geminiKey.includes('REPLACE_WITH')) {
-    console.warn('  ⚠  WARNING: GEMINI_API_KEY not set in .env — AI features will not work!');
-    console.warn('  ➜  Get a free key at https://aistudio.google.com/ and add it to .env\n');
-  } else {
-    console.log('  ✓  Gemini AI key loaded (model: ' + (process.env.GEMINI_MODEL || 'gemini-2.0-flash') + ')');
-  }
-});
+// ── Start (Only if not running on Vercel) ───────────────────────────────────────
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(`\n  BimaFast Server running at http://localhost:${PORT}\n`);
+  });
+}
 
 module.exports = app;
