@@ -55,9 +55,10 @@ Designed for actuarial operations.
 
 ## 🤖 Gemini AI Integrations
 
-The system leverages the Gemini API (e.g. `gemini-2.5-flash`) for three key features:
+The system leverages the Gemini API (e.g. `gemini-3.0-flash`) for three key features:
 
 1. **AI Claim Auditor:** Parses unformatted, messy doctors' notes and returns a structured JSON object containing:
+
    * Patient Name
    * Diagnosis
    * Nights Admitted (calculating payout amount based on nightly rate)
@@ -77,7 +78,7 @@ Create a `.env` file in the root directory:
 ```ini
 PORT=3000
 GEMINI_API_KEY=your_gemini_api_key_here
-GEMINI_MODEL=gemini-2.5-flash
+GEMINI_MODEL=gemini-3.0-flash
 
 # Default App Settings
 DEFAULT_PREMIUM_KES=25
@@ -112,6 +113,7 @@ npm run dev
 Open **`http://localhost:3000`** in your browser.
 
 ### 3. Deploy to Render (preferred)
+
 This project is configured to deploy on Render. Use the following steps:
 
 1. Create a new **Web Service** on Render and connect your GitHub repository (branch: `main`).
@@ -122,11 +124,13 @@ This project is configured to deploy on Render. Use the following steps:
 npm install
 # Start (Render uses this to run the service)
 npm start
+
 ```
 
 3. Add the required environment variables in the Render Dashboard (do NOT commit them to Git):
+
 - `GEMINI_API_KEY` — your Gemini API key
-- `GEMINI_MODEL` — `gemini-2.5-flash`
+- `GEMINI_MODEL` — `gemini-3.0-flash`
 - `PORT` — `3000` (Render will normally supply a `PORT` env; use their value)
 
 4. Redeploy the service from the Render dashboard.

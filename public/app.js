@@ -36,7 +36,7 @@ const defaultState = {
   gemini: {
     apiKey: '',
     mode: 'offline',               // 'offline' | 'live'
-    modelName: 'gemini-2.0-flash',
+    modelName: 'gemini-3.0-flash',
   },
   chatHistory: [],              // AI chat message history
 };
@@ -220,7 +220,7 @@ function updateChatModeBadge() {
 // GEMINI API CORE CALLER
 // ============================================================
 async function callGeminiAPI(prompt, systemInstruction = '', responseSchema = null) {
-  const modelToUse = state.gemini.modelName || 'gemini-2.5-flash';
+  const modelToUse = state.gemini.modelName || 'gemini-3.0-flash';
 
   function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 

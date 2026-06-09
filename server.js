@@ -35,7 +35,7 @@ app.get('/api/config', (req, res) => {
   // Only expose what the frontend actually needs.
   // Passwords are compared server-side via /api/auth.
   res.json({
-    geminiModel:  process.env.GEMINI_MODEL       || 'gemini-2.5-flash',
+    geminiModel:  process.env.GEMINI_MODEL       || 'gemini-3.0-flash',
     appName:      process.env.APP_NAME           || 'BimaFast',
     appVersion:   process.env.APP_VERSION        || '2.0.0',
     defaultPremium:      parseInt(process.env.DEFAULT_PREMIUM_KES)          || 25,
@@ -126,7 +126,7 @@ app.post('/api/generate', async (req, res) => {
   }
 
   const { prompt, systemInstruction, responseSchema, modelName } = req.body;
-  const modelToUse = modelName || process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  const modelToUse = modelName || process.env.GEMINI_MODEL || 'gemini-3.0-flash';
   const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${modelToUse}:generateContent?key=${key}`;
 
   const requestBody = {
@@ -210,6 +210,6 @@ app.listen(PORT, () => {
     console.warn('  ⚠  WARNING: GEMINI_API_KEY not set in .env — AI features will not work!');
     console.warn('  ➜  Get a free key at https://aistudio.google.com/ and add it to .env\n');
   } else {
-    console.log('  ✓  Gemini AI key loaded (model: ' + (process.env.GEMINI_MODEL || 'gemini-2.5-flash') + ')');
+    console.log('  ✓  Gemini AI key loaded (model: ' + (process.env.GEMINI_MODEL || 'gemini-3.0-flash') + ')');
   }
 });
