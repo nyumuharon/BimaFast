@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: bimafast-web
+    env: node
+    plan: starter
+    region: oregon
+    repo: https://github.com/tmlnaliaka/BimaFast.git
+    branch: main
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeploy: true
