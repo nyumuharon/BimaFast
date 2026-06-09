@@ -35,7 +35,7 @@ const defaultState = {
   },
   gemini: {
     apiKey: '',
-    mode: 'offline',               // 'offline' | 'live'
+    mode: 'live',                  // 'offline' | 'live'
     modelName: 'gemini-3.0-flash',
   },
   chatHistory: [],              // AI chat message history
@@ -213,7 +213,7 @@ function updateChatModeBadge() {
   if (!badge) return;
   const isLive = state.gemini.mode === 'live';
   badge.textContent = isLive ? 'LIVE' : 'OFFLINE';
-  badge.className = `chat-mode-badge ${isLive ? 'live' : 'mock'}`;
+  badge.className = `chat-mode-badge ${isLive ? 'live' : 'offline'}`;
 }
 
 // ============================================================
@@ -223,30 +223,6 @@ async function callGeminiAPI(prompt, systemInstruction = '', responseSchema = nu
   const modelToUse = state.gemini.modelName || 'gemini-3.0-flash';
 
   function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-
-  async function mockFallback(input, schema) {
-    // Lightweight client-side mock fallback when server/Gemini unavailable
-    const inputText = Array.isArray(input) ? (input[0]?.parts?.[0]?.text || '') : String(input || '');
-    if (schema && typeof schema === 'object') {
-      // Return a minimal plausible JSON for the common claim-audit schema
-      try {
-        const mockObj = {
-          patient_name: 'UNKNOWN',
-          diagnosis: 'Clinical note unavailable',
-          admission_nights: 1,
-          clinical_indicators: [],
-          claim_decision: 'REJECTED',
-          confidence_score: 0.5,
-          payout_amount_kes: state.admin.payoutPerNight || 0,
-          rejection_reason: 'AI unavailable — fallback mock used',
-        };
-        return JSON.stringify(mockObj);
-      } catch (e) {
-        return JSON.stringify({ message: 'mock fallback' });
-      }
-    }
-    return `MOCK: Gemini unavailable. Summary of input: ${inputText.substring(0, 300)}...`;
-  }
 
   const maxAttempts = 3;
   const baseDelay = 400; // ms
@@ -291,13 +267,12 @@ async function callGeminiAPI(prompt, systemInstruction = '', responseSchema = nu
         continue;
       }
 
-      // All retries exhausted — use client-side mock fallback
-      console.error('All Gemini attempts failed, using local mock fallback.', lastErr);
+      // All retries exhausted — live Gemini is unavailable
+      console.error('All Gemini attempts failed.', lastErr);
       state.gemini.mode = 'offline';
       updateApiStatusUI();
-      showGlobalToast('All AI attempts failed; using local mock fallback.', 'warn');
-      const mock = await mockFallback(prompt, responseSchema);
-      return mock;
+      showGlobalToast('All AI attempts failed. Live Gemini is not available at the moment.', 'error');
+      throw lastErr;
     }
   }
 }
@@ -424,7 +399,7 @@ function displayAuditLog(result, isLive) {
   const modeTag = document.getElementById('audit-mode-tag');
 
   jsonEl.textContent = JSON.stringify(result, null, 2);
-  modeTag.textContent = isLive ? 'LIVE' : 'MOCK';
+  modeTag.textContent = isLive ? 'LIVE' : 'OFFLINE';
   modeTag.className = `audit-mode-tag ${isLive ? 'live' : ''}`;
 
   const isApproved = result.claim_decision === 'APPROVED';

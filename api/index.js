@@ -33,7 +33,7 @@ app.get('/api/config', (req, res) => {
   // Only expose what the frontend actually needs.
   // Passwords are compared server-side via /api/auth.
   res.json({
-    geminiModel:  process.env.GEMINI_MODEL       || 'gemini-3.0-flash',
+    geminiModel:  'gemini-3.0-flash',
     appName:      process.env.APP_NAME           || 'BimaFast',
     appVersion:   process.env.APP_VERSION        || '2.0.0',
     defaultPremium:      parseInt(process.env.DEFAULT_PREMIUM_KES)          || 25,

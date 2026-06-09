@@ -1,6 +1,6 @@
 'use strict';
 
-require('dotenv').config();
+require('dotenv').config({ override: true });
 const express = require('express');
 const helmet  = require('helmet');
 const cors    = require('cors');
@@ -35,7 +35,7 @@ app.get('/api/config', (req, res) => {
   // Only expose what the frontend actually needs.
   // Passwords are compared server-side via /api/auth.
   res.json({
-    geminiModel:  process.env.GEMINI_MODEL       || 'gemini-3.0-flash',
+    geminiModel:  'gemini-3.0-flash',
     appName:      process.env.APP_NAME           || 'BimaFast',
     appVersion:   process.env.APP_VERSION        || '2.0.0',
     defaultPremium:      parseInt(process.env.DEFAULT_PREMIUM_KES)          || 25,
@@ -119,14 +119,14 @@ app.post('/api/gemini-key', (req, res) => {
 
 // ── /api/generate  (server-side proxy to Google Gemini)
 app.post('/api/generate', async (req, res) => {
-  // Server-side retries with exponential backoff and optional mock fallback
+  // Server-side retries with exponential backoff for live Gemini
   const key = process.env.GEMINI_API_KEY || '';
   if (!key || key.includes('REPLACE_WITH')) {
     return res.status(503).json({ error: 'Gemini API key not configured on server' });
   }
 
   const { prompt, systemInstruction, responseSchema, modelName } = req.body;
-  const modelToUse = modelName || process.env.GEMINI_MODEL || 'gemini-3.0-flash';
+  const modelToUse = modelName || 'gemini-3.0-flash';
   const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${modelToUse}:generateContent?key=${key}`;
 
   const requestBody = {
@@ -174,19 +174,6 @@ app.post('/api/generate', async (req, res) => {
     return res.status(r.status).send(body);
   } catch (err) {
     console.error('Error proxying to Gemini after retries:', err);
-
-    const enableMock = String(process.env.ENABLE_MOCK_FALLBACK || 'false').toLowerCase() === 'true';
-    if (enableMock) {
-      // Produce a small deterministic mock response that resembles Gemini's shape
-      const inputText = Array.isArray(prompt) ? (prompt[0]?.parts?.[0]?.text || '') : (String(prompt || '')).slice(0, 400);
-      const mockText = JSON.stringify({
-        candidates: [{
-          content: { parts: [{ text: `MOCK RESPONSE: The AI is currently unavailable. Fallback summary of input:\n${inputText.substring(0, 300)}...` }] }
-        }]
-      });
-      return res.status(200).send(mockText);
-    }
-
     return res.status(502).json({ error: 'Failed to contact Gemini after retries', details: String(err && err.message ? err.message : err) });
   }
 });
@@ -210,6 +197,6 @@ app.listen(PORT, () => {
     console.warn('  ⚠  WARNING: GEMINI_API_KEY not set in .env — AI features will not work!');
     console.warn('  ➜  Get a free key at https://aistudio.google.com/ and add it to .env\n');
   } else {
-    console.log('  ✓  Gemini AI key loaded (model: ' + (process.env.GEMINI_MODEL || 'gemini-3.0-flash') + ')');
+    console.log('  ✓  Gemini AI key loaded (model: gemini-3.0-flash)');
   }
 });
