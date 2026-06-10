@@ -1219,6 +1219,20 @@ function exportAdminReport() {
   const eventsHtml = state.admin.eventStream.map(e => `<div>${escapeHtml('[' + e.time + '] ' + e.text)}</div>`).join('') || '<div>No events</div>';
 
   const content = `
+    <style>
+      .pdf-report { font-family: 'Inter', Arial, sans-serif; color:#0f172a; }
+      .pdf-report .report-header { display:flex; gap:12px; align-items:center; border-bottom:1px solid rgba(15,23,42,0.06); padding-bottom:12px; margin-bottom:12px; }
+      .pdf-report .brand-logo { width:48px; height:48px; border-radius:8px; background:linear-gradient(135deg,#5b21b6,#06b6d4); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; }
+      .pdf-report h1 { font-size:18px; margin:0; }
+      .pdf-report .meta { color:#6b7280; font-size:12px; }
+      .pdf-report .metrics { display:flex; gap:12px; margin:12px 0; }
+      .pdf-report .metric { background:#fff; padding:10px; border-radius:8px; border:1px solid rgba(15,23,42,0.04); }
+      .pdf-report table { width:100%; border-collapse:collapse; margin-top:8px; font-size:12px; }
+      .pdf-report th, .pdf-report td { border:1px solid rgba(15,23,42,0.06); padding:8px; text-align:left; }
+      .pdf-report .section h3 { margin:8px 0 6px; font-size:14px; }
+      .pdf-report .footer { margin-top:16px; color:#6b7280; font-size:11px; }
+    </style>
+
     <div class="pdf-report">
       <div class="report-header">
         <div class="brand-logo">BF</div>
