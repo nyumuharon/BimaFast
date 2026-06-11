@@ -35,8 +35,8 @@ const defaultState = {
   },
   gemini: {
     apiKey: '',
-    mode: 'offline',               // 'offline' | 'live'
-    modelName: 'gemini-2.0-flash',
+    mode: 'live',                  // 'offline' | 'live'
+    modelName: 'gemini-3.0-flash',
   },
   chatHistory: [],              // AI chat message history
 };
@@ -137,10 +137,11 @@ let geminiApiKey = '';
 
 async function loadGeminiApiKey() {
   try {
-    const key = await Auth.fetchGeminiKey();
-    geminiApiKey = key;
-    state.gemini.apiKey = key;
-    state.gemini.mode = key ? 'live' : 'offline';
+    const info = await Auth.fetchGeminiKey();
+    const available = info && info.available;
+    geminiApiKey = '';
+    state.gemini.apiKey = '';
+    state.gemini.mode = available ? 'live' : 'offline';
   } catch (err) {
     console.warn('Could not load server-side Gemini API key:', err);
     geminiApiKey = '';
@@ -212,45 +213,68 @@ function updateChatModeBadge() {
   if (!badge) return;
   const isLive = state.gemini.mode === 'live';
   badge.textContent = isLive ? 'LIVE' : 'OFFLINE';
-  badge.className = `chat-mode-badge ${isLive ? 'live' : 'mock'}`;
+  badge.className = `chat-mode-badge ${isLive ? 'live' : 'offline'}`;
 }
 
 // ============================================================
 // GEMINI API CORE CALLER
 // ============================================================
 async function callGeminiAPI(prompt, systemInstruction = '', responseSchema = null) {
-  const keyToUse = geminiApiKey || state.gemini.apiKey;
-  if (!keyToUse) throw new Error('NO_API_KEY');
+  const modelToUse = state.gemini.modelName || 'gemini-3.0-flash';
 
-  const modelToUse = state.gemini.modelName || 'gemini-2.0-flash';
-  const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${modelToUse}:generateContent?key=${keyToUse}`;
+  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-  const requestBody = {
-    systemInstruction: systemInstruction ? { parts: [{ text: systemInstruction }] } : undefined,
-    contents: Array.isArray(prompt) ? prompt : [{ role: 'user', parts: [{ text: prompt }] }],
-    generationConfig: responseSchema ? {
-      response_mime_type: 'application/json',
-      response_schema: responseSchema,
-      temperature: 0.2,
-    } : { temperature: 0.8 },
-  };
+  const maxAttempts = 3;
+  const baseDelay = 400; // ms
+  let lastErr = null;
 
-  const response = await fetch(GEMINI_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(requestBody),
-  });
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, systemInstruction, responseSchema, modelName: modelToUse }),
+      });
 
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err?.error?.message || `HTTP ${response.status}`);
+      const text = await response.text();
+
+      if (!response.ok) {
+        const message = text || `HTTP ${response.status}`;
+        if (response.status === 429 || String(message).toLowerCase().includes('quota') || String(message).toLowerCase().includes('rate-limit')) {
+          state.gemini.mode = 'offline';
+          updateApiStatusUI();
+          showGlobalToast('Gemini quota exceeded or rate-limited — switched to offline mode. Please check billing or rotate the API key.', 'error');
+          throw new Error('GEMINI_QUOTA_EXCEEDED: ' + message);
+        }
+        throw new Error(message);
+      }
+
+      try {
+        const data = JSON.parse(text);
+        const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!rawText) throw new Error('Empty response from Gemini');
+        return rawText;
+      } catch (e) {
+        // Non-JSON or unexpected shape; return raw text
+        return text;
+      }
+    } catch (err) {
+      lastErr = err;
+      console.warn(`Gemini proxy attempt ${attempt} failed:`, err && err.message ? err.message : err);
+      if (attempt < maxAttempts) {
+        const wait = baseDelay * Math.pow(2, attempt - 1);
+        await sleep(wait);
+        continue;
+      }
+
+      // All retries exhausted — live Gemini is unavailable
+      console.error('All Gemini attempts failed.', lastErr);
+      state.gemini.mode = 'offline';
+      updateApiStatusUI();
+      showGlobalToast('All AI attempts failed. Live Gemini is not available at the moment.', 'error');
+      throw lastErr;
+    }
   }
-
-  const data = await response.json();
-  const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!rawText) throw new Error('Empty response from Gemini');
-
-  return rawText;
 }
 
 // ============================================================
@@ -375,7 +399,7 @@ function displayAuditLog(result, isLive) {
   const modeTag = document.getElementById('audit-mode-tag');
 
   jsonEl.textContent = JSON.stringify(result, null, 2);
-  modeTag.textContent = isLive ? 'LIVE' : 'MOCK';
+  modeTag.textContent = isLive ? 'LIVE' : 'OFFLINE';
   modeTag.className = `audit-mode-tag ${isLive ? 'live' : ''}`;
 
   const isApproved = result.claim_decision === 'APPROVED';
@@ -1181,37 +1205,112 @@ function exportAdminReport() {
   const payouts = state.admin.totalBenefitsPaid;
   const lossRatio = premiums > 0 ? ((payouts / premiums) * 100).toFixed(1) : '0.0';
 
-  const lines = [
-    'BimaFast — Admin Portfolio Report',
-    `Generated: ${now}`,
-    '',
-    '=== PORTFOLIO METRICS ===',
-    `Active Policies: ${state.admin.activePolicies}`,
-    `Total Premiums Collected: KES ${premiums.toLocaleString()}`,
-    `Total Benefits Paid: KES ${payouts.toLocaleString()}`,
-    `Loss Ratio: ${lossRatio}%`,
-    `Premium Rate: KES ${state.admin.premiumRate}/ride`,
-    `Payout Rate: KES ${state.admin.payoutPerNight}/night`,
-    '',
-    '=== EVENT LOG ===',
-    ...state.admin.eventStream.map(e => `[${e.time}] [${e.type.toUpperCase()}] ${e.text}`),
-    '',
-    '=== HOSPITAL ADMISSIONS ===',
-    ...state.hospital.admissions.map(a => `${a.phone} | ${a.diagnosis} | ${a.nights} nights | ${a.status} | ${a.timestamp || ''}`),
-    '',
-    '=== RIDER CLAIMS ===',
-    ...state.rider.claims.map(c => `${c.date} | ${c.diagnosis} | ${c.nights} nights | ${c.status} | KES ${c.amount.toLocaleString()} | ${c.method}`),
-  ];
+  const filename = `bimafast-report-${Date.now()}.pdf`;
 
-  const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `bimafast-report-${Date.now()}.txt`;
-  a.click();
-  URL.revokeObjectURL(url);
-  showGlobalToast('Report exported successfully!', 'success');
-  addEvent('ai', 'ai', 'Admin exported portfolio report.');
+  // Build HTML content for the PDF
+  const admissionsRows = state.hospital.admissions.map(a => `
+    <tr><td>${escapeHtml(a.phone)}</td><td>${escapeHtml(a.diagnosis)}</td><td>${a.nights}</td><td>${escapeHtml(a.status)}</td><td>${escapeHtml(a.timestamp || '')}</td></tr>
+  `).join('') || '<tr><td colspan="5">No admissions recorded</td></tr>';
+
+  const claimsRows = state.rider.claims.map(c => `
+    <tr><td>${escapeHtml(c.date)}</td><td>${escapeHtml(c.diagnosis)}</td><td>${c.nights}</td><td>${escapeHtml(c.status)}</td><td>KES ${Number(c.amount).toLocaleString()}</td><td>${escapeHtml(c.method || '')}</td></tr>
+  `).join('') || '<tr><td colspan="6">No claims recorded</td></tr>';
+
+  const eventsHtml = state.admin.eventStream.map(e => `<div>${escapeHtml('[' + e.time + '] ' + e.text)}</div>`).join('') || '<div>No events</div>';
+
+  const content = `
+    <style>
+      @page { margin: 0; }
+      .pdf-report { font-family: 'Inter', Arial, sans-serif; color:#f1f5f9; background:#0f172a; padding:24px; }
+      .pdf-report .report-header { display:flex; gap:16px; align-items:center; border-bottom:3px solid #5b21b6; padding-bottom:12px; margin-bottom:18px; }
+      .pdf-report .brand-logo { width:64px; height:64px; border-radius:10px; background:linear-gradient(135deg,#5b21b6,#06b6d4); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:18px; }
+      .pdf-report h1 { font-size:20px; margin:0; color:#f1f5f9; }
+      .pdf-report .meta { color:#94a3b8; font-size:12px; margin-top:6px; }
+      .pdf-report .metrics { display:flex; gap:12px; margin:16px 0; flex-wrap:wrap; }
+      .pdf-report .metric { background:#1e293b; padding:12px; border-radius:8px; min-width:160px; border:1px solid #334155; }
+      .pdf-report .metric .label { font-size:11px; color:#64748b; }
+      .pdf-report .metric .value { font-weight:700; font-size:16px; color:#f1f5f9; margin-top:6px; }
+      .pdf-report table { width:100%; border-collapse:collapse; margin-top:12px; font-size:12px; }
+      .pdf-report th { background:#5b21b6; color:#fff; padding:10px 8px; text-align:left; font-weight:700; }
+      .pdf-report td { border-bottom:1px solid #334155; padding:10px 8px; color:#cbd5e1; }
+      .pdf-report .section { margin-top:20px; }
+      .pdf-report .section h3 { margin:0 0 10px 0; color:#5b21b6; font-size:14px; font-weight:700; }
+      .pdf-report .footer { margin-top:24px; font-size:11px; color:#64748b; padding-top:12px; border-top:1px solid #334155; }
+      .pdf-report .status-approved { color:#10b981; font-weight:700; }
+      .pdf-report .status-pending { color:#f59e0b; font-weight:700; }
+      .pdf-report .status-rejected { color:#ef4444; font-weight:700; }
+    </style>
+
+    <div class="pdf-report">
+      <div class="report-header">
+        <div class="brand-logo">BF</div>
+        <div>
+          <h1>BimaFast — Admin Portfolio Report</h1>
+          <div class="meta">Generated: ${now}</div>
+        </div>
+      </div>
+
+      <div class="metrics">
+        <div class="metric"><div class="label">Active Policies</div><div class="value">${state.admin.activePolicies}</div></div>
+        <div class="metric"><div class="label">Total Premiums Collected</div><div class="value">KES ${premiums.toLocaleString()}</div></div>
+        <div class="metric"><div class="label">Total Benefits Paid</div><div class="value">KES ${payouts.toLocaleString()}</div></div>
+        <div class="metric"><div class="label">Loss Ratio</div><div class="value">${lossRatio}%</div></div>
+      </div>
+
+      <div class="section">
+        <h3>Portfolio Settings</h3>
+        <table>
+          <tr><th>Premium Rate</th><td>KES ${state.admin.premiumRate}/ride</td></tr>
+          <tr><th>Payout Rate</th><td>KES ${state.admin.payoutPerNight}/night</td></tr>
+        </table>
+      </div>
+
+      <div class="section">
+        <h3>Claims Summary</h3>
+        <table>
+          <thead><tr><th>Date</th><th>Diagnosis</th><th>Nights</th><th>Status</th><th>Amount</th><th>Method</th></tr></thead>
+          <tbody>${claimsRows}</tbody>
+        </table>
+      </div>
+
+      <div class="section">
+        <h3>Hospital Admissions</h3>
+        <table>
+          <thead><tr><th>Phone</th><th>Diagnosis</th><th>Nights</th><th>Status</th><th>Timestamp</th></tr></thead>
+          <tbody>${admissionsRows}</tbody>
+        </table>
+      </div>
+
+      <div class="section">
+        <h3>Event Log</h3>
+        <div style="font-size:11px; color:#94a3b8; line-height:1.8;">${eventsHtml}</div>
+      </div>
+
+      <div class="footer">Generated by BimaFast · ${escapeHtml(now)} | Powered by Gemini AI</div>
+    </div>
+  `;
+
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = content;
+  document.body.appendChild(wrapper);
+
+  const opt = {
+    margin:       10,
+    filename:     filename,
+    image:        { type: 'jpeg', quality: 0.95 },
+    html2canvas:  { scale: 2, useCORS: true },
+    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  };
+
+  html2pdf().set(opt).from(wrapper).save().then(() => {
+    document.body.removeChild(wrapper);
+    showGlobalToast('Report exported successfully!', 'success');
+    addEvent('ai', 'ai', 'Admin exported portfolio report.');
+  }).catch(err => {
+    console.error('PDF export failed', err);
+    document.body.removeChild(wrapper);
+    showGlobalToast('Failed to export report as PDF', 'error');
+  });
 }
 
 // ============================================================

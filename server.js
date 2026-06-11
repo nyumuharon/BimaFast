@@ -1,6 +1,6 @@
 'use strict';
 
-require('dotenv').config();
+require('dotenv').config({ override: true });
 const express = require('express');
 const helmet  = require('helmet');
 const cors    = require('cors');
@@ -26,13 +26,15 @@ app.use(helmet({
 app.use(cors());
 app.use(express.json());
 
-// ── API Routes ───────────────────────────────────────────────────────────────
+// ── Static Files ───────────────────────────────────────────────────────────────
+// Serve frontend static files from /public as the web root
+app.use(express.static(path.join(__dirname, 'public')));
 
 // ── /api/config  (safe config delivery — no secrets exposed beyond what's needed) ──
 app.get('/api/config', (req, res) => {
   // Only expose what the frontend actually needs.
   // Passwords are compared server-side via /api/auth.
-  res.json({
+res.json({
     geminiModel:  'gemini-3.0-flash',
     appName:      process.env.APP_NAME           || 'BimaFast',
     appVersion:   process.env.APP_VERSION        || '2.0.0',
@@ -105,10 +107,11 @@ app.post('/api/gemini-key', (req, res) => {
 
     const key = process.env.GEMINI_API_KEY || '';
     if (!key || key.includes('REPLACE_WITH')) {
-      return res.status(503).json({ error: 'Gemini API key not configured in .env file' });
+      return res.status(503).json({ error: 'Gemini API key not configured in .env file', available: false });
     }
 
-    res.json({ key });
+    // Do NOT return the raw key to the client. Only indicate availability.
+    res.json({ available: true });
   } catch {
     res.status(401).json({ error: 'Invalid token' });
   }
@@ -116,13 +119,14 @@ app.post('/api/gemini-key', (req, res) => {
 
 // ── /api/generate  (server-side proxy to Google Gemini)
 app.post('/api/generate', async (req, res) => {
+  // Server-side retries with exponential backoff for live Gemini
   const key = process.env.GEMINI_API_KEY || '';
   if (!key || key.includes('REPLACE_WITH')) {
     return res.status(503).json({ error: 'Gemini API key not configured on server' });
   }
 
   const { prompt, systemInstruction, responseSchema, modelName } = req.body;
-  const modelToUse = modelName || 'gemini-3.0-flash';
+  const modelToUse = modelName || 'gemini-1.5-flash';
   const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${modelToUse}:generateContent?key=${key}`;
 
   const requestBody = {
@@ -142,6 +146,7 @@ app.post('/api/generate', async (req, res) => {
     for (let i = 0; i < attempts; i++) {
       try {
         const r = await fetch(url, opts);
+        // If rate-limited or server error, retry
         if (r.status === 429 || r.status >= 500) {
           lastErr = r;
           const wait = baseDelay * Math.pow(2, i);
@@ -173,11 +178,25 @@ app.post('/api/generate', async (req, res) => {
   }
 });
 
-// ── Start (Only if not running on Vercel) ───────────────────────────────────────
-if (process.env.NODE_ENV !== 'production') {
-  app.listen(PORT, () => {
-    console.log(`\n  BimaFast Server running at http://localhost:${PORT}\n`);
-  });
-}
+// ── Catch-all → serve index.html (SPA fallback) ───────────────────────────────
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
-module.exports = app;
+// ── Start ──────────────────────────────────────────────────────────────────────
+app.listen(PORT, () => {
+  console.log('\n');
+  console.log('  ╔═══════════════════════════════════════╗');
+  console.log('  ║     BimaFast Server  v2.0.0           ║');
+  console.log(`  ║     http://localhost:${PORT}             ║`);
+  console.log('  ╚═══════════════════════════════════════╝');
+  console.log('\n  Ready. Open http://localhost:' + PORT + ' in your browser.\n');
+
+  const geminiKey = process.env.GEMINI_API_KEY || '';
+  if (!geminiKey || geminiKey.includes('REPLACE_WITH')) {
+    console.warn('  ⚠  WARNING: GEMINI_API_KEY not set in .env — AI features will not work!');
+    console.warn('  ➜  Get a free key at https://aistudio.google.com/ and add it to .env\n');
+  } else {
+    console.log('  ✓  Gemini AI key loaded (model: gemini-1.5-flash)');
+  }
+});

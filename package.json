@@ -2,10 +2,10 @@
   "name": "bimafast",
   "version": "2.0.0",
   "description": "BimaFast — Embedded Daily Micro-Insurance for Gig Workers",
-  "main": "api/index.js",
+  "main": "server.js",
   "scripts": {
-    "start": "node api/index.js",
-    "dev": "nodemon api/index.js"
+    "start": "node server.js",
+    "dev": "nodemon server.js"
   },
   "keywords": ["insurance", "fintech", "kenya", "gig-economy", "gemini-ai"],
   "author": "BimaFast Team",
