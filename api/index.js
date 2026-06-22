@@ -33,7 +33,7 @@ app.get('/api/config', (req, res) => {
   // Only expose what the frontend actually needs.
   // Passwords are compared server-side via /api/auth.
   res.json({
-    geminiModel:  'gemini-3.0-flash',
+    geminiModel:  process.env.GEMINI_MODEL       || 'gemini-1.5-flash',
     appName:      process.env.APP_NAME           || 'BimaFast',
     appVersion:   process.env.APP_VERSION        || '2.0.0',
     defaultPremium:      parseInt(process.env.DEFAULT_PREMIUM_KES)          || 25,
@@ -122,7 +122,7 @@ app.post('/api/generate', async (req, res) => {
   }
 
   const { prompt, systemInstruction, responseSchema, modelName } = req.body;
-  const modelToUse = modelName || 'gemini-3.0-flash';
+  const modelToUse = modelName || process.env.GEMINI_MODEL || 'gemini-1.5-flash';
   const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${modelToUse}:generateContent?key=${key}`;
 
   const requestBody = {
