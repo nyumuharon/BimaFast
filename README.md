@@ -55,7 +55,7 @@ Designed for actuarial operations.
 
 ## 🤖 Gemini AI Integrations
 
-The system leverages the Gemini API (e.g. `gemini-3.0-flash`) for three key features:
+The system leverages the Gemini API (e.g. `gemini-1.5-flash`) for three key features:
 
 1. **AI Claim Auditor:** Parses unformatted, messy doctors' notes and returns a structured JSON object containing:
 
@@ -78,7 +78,7 @@ Create a `.env` file in the root directory:
 ```ini
 PORT=3000
 GEMINI_API_KEY=your_gemini_api_key_here
-GEMINI_MODEL=gemini-3.0-flash
+GEMINI_MODEL=gemini-1.5-flash
 
 # Default App Settings
 DEFAULT_PREMIUM_KES=25
@@ -130,7 +130,7 @@ npm start
 3. Add the required environment variables in the Render Dashboard (do NOT commit them to Git):
 
 - `GEMINI_API_KEY` — your Gemini API key
-- `GEMINI_MODEL` — `gemini-3.0-flash`
+- `GEMINI_MODEL` — `gemini-1.5-flash`
 - `PORT` — `3000` (Render will normally supply a `PORT` env; use their value)
 
 4. Redeploy the service from the Render dashboard.

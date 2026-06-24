@@ -36,7 +36,7 @@ const defaultState = {
   gemini: {
     apiKey: '',
     mode: 'live',                  // 'offline' | 'live'
-    modelName: 'gemini-3.0-flash',
+    modelName: 'gemini-1.5-flash',
   },
   chatHistory: [],              // AI chat message history
 };
@@ -220,7 +220,7 @@ function updateChatModeBadge() {
 // GEMINI API CORE CALLER
 // ============================================================
 async function callGeminiAPI(prompt, systemInstruction = '', responseSchema = null) {
-  const modelToUse = state.gemini.modelName || 'gemini-3.0-flash';
+  const modelToUse = state.gemini.modelName || 'gemini-1.5-flash';
 
   function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
@@ -968,12 +968,12 @@ function renderSustainabilityChart() {
     <!-- Definitions for Gradients -->
     <defs>
       <linearGradient id="premiumGrad" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="var(--blue)" />
-        <stop offset="100%" stop-color="var(--blue-dim)" />
+        <stop offset="0%" stop-color="var(--primary)" />
+        <stop offset="100%" stop-color="var(--primary-dim)" />
       </linearGradient>
       <linearGradient id="payoutGrad" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="var(--green)" />
-        <stop offset="100%" stop-color="var(--green-dim)" />
+        <stop offset="0%" stop-color="var(--success)" />
+        <stop offset="100%" stop-color="var(--success-dim)" />
       </linearGradient>
     </defs>
   `;
@@ -1197,7 +1197,7 @@ function resetDemoData() {
 }
 
 // ============================================================
-// DATA EXPORT
+// DATA EXPORT — Downloads file to user's computer (never appends to page)
 // ============================================================
 function exportAdminReport() {
   const now = new Date().toLocaleString('en-KE');
@@ -1205,112 +1205,137 @@ function exportAdminReport() {
   const payouts = state.admin.totalBenefitsPaid;
   const lossRatio = premiums > 0 ? ((payouts / premiums) * 100).toFixed(1) : '0.0';
 
-  const filename = `bimafast-report-${Date.now()}.pdf`;
+  const filename = `bimafast-report-${Date.now()}`;
 
-  // Build HTML content for the PDF
+  // Build table rows
   const admissionsRows = state.hospital.admissions.map(a => `
     <tr><td>${escapeHtml(a.phone)}</td><td>${escapeHtml(a.diagnosis)}</td><td>${a.nights}</td><td>${escapeHtml(a.status)}</td><td>${escapeHtml(a.timestamp || '')}</td></tr>
   `).join('') || '<tr><td colspan="5">No admissions recorded</td></tr>';
 
   const claimsRows = state.rider.claims.map(c => `
-    <tr><td>${escapeHtml(c.date)}</td><td>${escapeHtml(c.diagnosis)}</td><td>${c.nights}</td><td>${escapeHtml(c.status)}</td><td>KES ${Number(c.amount).toLocaleString()}</td><td>${escapeHtml(c.method || '')}</td></tr>
+    <tr><td>${escapeHtml(c.date)}</td><td>${escapeHtml(c.diagnosis)}</td><td>${c.nights}</td><td><span class="status-${c.status}">${escapeHtml(c.status)}</span></td><td>KES ${Number(c.amount).toLocaleString()}</td><td>${escapeHtml(c.method || '')}</td></tr>
   `).join('') || '<tr><td colspan="6">No claims recorded</td></tr>';
 
   const eventsHtml = state.admin.eventStream.map(e => `<div>${escapeHtml('[' + e.time + '] ' + e.text)}</div>`).join('') || '<div>No events</div>';
 
-  const content = `
-    <style>
-      @page { margin: 0; }
-      .pdf-report { font-family: 'Inter', Arial, sans-serif; color:#f1f5f9; background:#0f172a; padding:24px; }
-      .pdf-report .report-header { display:flex; gap:16px; align-items:center; border-bottom:3px solid #5b21b6; padding-bottom:12px; margin-bottom:18px; }
-      .pdf-report .brand-logo { width:64px; height:64px; border-radius:10px; background:linear-gradient(135deg,#5b21b6,#06b6d4); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:18px; }
-      .pdf-report h1 { font-size:20px; margin:0; color:#f1f5f9; }
-      .pdf-report .meta { color:#94a3b8; font-size:12px; margin-top:6px; }
-      .pdf-report .metrics { display:flex; gap:12px; margin:16px 0; flex-wrap:wrap; }
-      .pdf-report .metric { background:#1e293b; padding:12px; border-radius:8px; min-width:160px; border:1px solid #334155; }
-      .pdf-report .metric .label { font-size:11px; color:#64748b; }
-      .pdf-report .metric .value { font-weight:700; font-size:16px; color:#f1f5f9; margin-top:6px; }
-      .pdf-report table { width:100%; border-collapse:collapse; margin-top:12px; font-size:12px; }
-      .pdf-report th { background:#5b21b6; color:#fff; padding:10px 8px; text-align:left; font-weight:700; }
-      .pdf-report td { border-bottom:1px solid #334155; padding:10px 8px; color:#cbd5e1; }
-      .pdf-report .section { margin-top:20px; }
-      .pdf-report .section h3 { margin:0 0 10px 0; color:#5b21b6; font-size:14px; font-weight:700; }
-      .pdf-report .footer { margin-top:24px; font-size:11px; color:#64748b; padding-top:12px; border-top:1px solid #334155; }
-      .pdf-report .status-approved { color:#10b981; font-weight:700; }
-      .pdf-report .status-pending { color:#f59e0b; font-weight:700; }
-      .pdf-report .status-rejected { color:#ef4444; font-weight:700; }
-    </style>
-
-    <div class="pdf-report">
-      <div class="report-header">
+  // Build a complete, self-contained HTML document
+  const htmlDoc = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>BimaFast Report — ${now}</title>
+<style>
+  @page { margin: 15mm; size: A4; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', 'Segoe UI', Arial, sans-serif; color: #1e293b; background: #ffffff; padding: 32px; line-height: 1.5; }
+  .report-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 16px; margin-bottom: 24px; }
+  .header-left { display: flex; gap: 16px; align-items: center; }
+  .brand-logo { width: 56px; height: 56px; border-radius: 12px; background: linear-gradient(135deg, #6366f1, #06b6d4); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 20px; flex-shrink: 0; }
+  h1 { font-size: 22px; font-weight: 800; color: #0f172a; letter-spacing: -0.025em; }
+  .meta { color: #64748b; font-size: 13px; margin-top: 4px; font-weight: 500; }
+  .metrics { display: flex; gap: 16px; margin: 24px 0; flex-wrap: wrap; }
+  .metric { flex: 1; min-width: 140px; background: #f8fafc; padding: 16px; border-radius: 10px; border: 1px solid #e2e8f0; }
+  .metric .label { font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em; }
+  .metric .value { font-weight: 700; font-size: 18px; color: #0f172a; margin-top: 6px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 12px; text-align: left; }
+  th { background: #f1f5f9; color: #475569; padding: 10px 12px; font-weight: 600; border-bottom: 2px solid #e2e8f0; text-transform: uppercase; font-size: 10px; letter-spacing: 0.05em; }
+  td { border-bottom: 1px solid #f1f5f9; padding: 10px 12px; color: #334155; }
+  tr:nth-child(even) td { background-color: #f8fafc; }
+  .section { margin-top: 28px; }
+  .section h3 { margin: 0 0 12px 0; color: #4f46e5; font-size: 14px; font-weight: 700; border-left: 3px solid #6366f1; padding-left: 8px; }
+  .footer { margin-top: 36px; font-size: 11px; color: #94a3b8; padding-top: 16px; border-top: 1px solid #e2e8f0; }
+  .status-approved { color: #059669; font-weight: 600; }
+  .status-pending { color: #d97706; font-weight: 600; }
+  .status-rejected { color: #dc2626; font-weight: 600; }
+  .event-log-container { font-size: 11px; color: #475569; background: #f8fafc; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0; line-height: 1.6; max-height: 300px; overflow-y: auto; }
+  .no-print { text-align: center; margin-bottom: 20px; }
+  .no-print button { background: linear-gradient(135deg, #6366f1, #4f46e5); color: #fff; border: none; padding: 10px 24px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; margin: 0 8px; }
+  .no-print button:hover { opacity: 0.9; }
+  @media print { .no-print { display: none !important; } body { padding: 0; } }
+</style>
+</head>
+<body>
+  <div class="no-print">
+    <button onclick="window.print()">Print / Save as PDF</button>
+    <button onclick="window.close()">Close</button>
+  </div>
+  <div class="pdf-report">
+    <div class="report-header">
+      <div class="header-left">
         <div class="brand-logo">BF</div>
         <div>
           <h1>BimaFast — Admin Portfolio Report</h1>
           <div class="meta">Generated: ${now}</div>
         </div>
       </div>
-
-      <div class="metrics">
-        <div class="metric"><div class="label">Active Policies</div><div class="value">${state.admin.activePolicies}</div></div>
-        <div class="metric"><div class="label">Total Premiums Collected</div><div class="value">KES ${premiums.toLocaleString()}</div></div>
-        <div class="metric"><div class="label">Total Benefits Paid</div><div class="value">KES ${payouts.toLocaleString()}</div></div>
-        <div class="metric"><div class="label">Loss Ratio</div><div class="value">${lossRatio}%</div></div>
-      </div>
-
-      <div class="section">
-        <h3>Portfolio Settings</h3>
-        <table>
-          <tr><th>Premium Rate</th><td>KES ${state.admin.premiumRate}/ride</td></tr>
-          <tr><th>Payout Rate</th><td>KES ${state.admin.payoutPerNight}/night</td></tr>
-        </table>
-      </div>
-
-      <div class="section">
-        <h3>Claims Summary</h3>
-        <table>
-          <thead><tr><th>Date</th><th>Diagnosis</th><th>Nights</th><th>Status</th><th>Amount</th><th>Method</th></tr></thead>
-          <tbody>${claimsRows}</tbody>
-        </table>
-      </div>
-
-      <div class="section">
-        <h3>Hospital Admissions</h3>
-        <table>
-          <thead><tr><th>Phone</th><th>Diagnosis</th><th>Nights</th><th>Status</th><th>Timestamp</th></tr></thead>
-          <tbody>${admissionsRows}</tbody>
-        </table>
-      </div>
-
-      <div class="section">
-        <h3>Event Log</h3>
-        <div style="font-size:11px; color:#94a3b8; line-height:1.8;">${eventsHtml}</div>
-      </div>
-
-      <div class="footer">Generated by BimaFast · ${escapeHtml(now)} | Powered by Gemini AI</div>
     </div>
-  `;
+    <div class="metrics">
+      <div class="metric"><div class="label">Active Policies</div><div class="value">${state.admin.activePolicies}</div></div>
+      <div class="metric"><div class="label">Total Premiums</div><div class="value">KES ${premiums.toLocaleString()}</div></div>
+      <div class="metric"><div class="label">Benefits Paid</div><div class="value">KES ${payouts.toLocaleString()}</div></div>
+      <div class="metric"><div class="label">Loss Ratio</div><div class="value">${lossRatio}%</div></div>
+    </div>
+    <div class="section">
+      <h3>Portfolio Settings</h3>
+      <table>
+        <thead><tr><th>Setting</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td>Premium Rate</td><td>KES ${state.admin.premiumRate}/ride</td></tr>
+          <tr><td>Payout Rate</td><td>KES ${state.admin.payoutPerNight}/night</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="section">
+      <h3>Claims Summary</h3>
+      <table>
+        <thead><tr><th>Date</th><th>Diagnosis</th><th>Nights</th><th>Status</th><th>Amount</th><th>Method</th></tr></thead>
+        <tbody>${claimsRows}</tbody>
+      </table>
+    </div>
+    <div class="section">
+      <h3>Hospital Admissions</h3>
+      <table>
+        <thead><tr><th>Phone</th><th>Diagnosis</th><th>Nights</th><th>Status</th><th>Timestamp</th></tr></thead>
+        <tbody>${admissionsRows}</tbody>
+      </table>
+    </div>
+    <div class="section">
+      <h3>Event Log</h3>
+      <div class="event-log-container">${eventsHtml}</div>
+    </div>
+    <div class="footer">
+      Generated by BimaFast Portfolio Intelligence · ${escapeHtml(now)} | Powered by Gemini AI
+    </div>
+  </div>
+</body>
+</html>`;
 
-  const wrapper = document.createElement('div');
-  wrapper.innerHTML = content;
-  document.body.appendChild(wrapper);
-
-  const opt = {
-    margin:       10,
-    filename:     filename,
-    image:        { type: 'jpeg', quality: 0.95 },
-    html2canvas:  { scale: 2, useCORS: true },
-    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-  };
-
-  html2pdf().set(opt).from(wrapper).save().then(() => {
-    document.body.removeChild(wrapper);
-    showGlobalToast('Report exported successfully!', 'success');
+  // Method 1: Open in a new window — user clicks "Print / Save as PDF" button
+  // This NEVER appends anything to the current page
+  const printWindow = window.open('', '_blank');
+  if (printWindow) {
+    printWindow.document.write(htmlDoc);
+    printWindow.document.close();
+    printWindow.focus();
+    showGlobalToast('Report opened in new window — click "Print / Save as PDF" to download.', 'success');
     addEvent('ai', 'ai', 'Admin exported portfolio report.');
-  }).catch(err => {
-    console.error('PDF export failed', err);
-    document.body.removeChild(wrapper);
-    showGlobalToast('Failed to export report as PDF', 'error');
-  });
+  } else {
+    // Method 2 fallback: Download as HTML file via Blob if popup blocked
+    const blob = new Blob([htmlDoc], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename + '.html';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 100);
+    showGlobalToast('Report downloaded as HTML file. Open it and use Ctrl+P to save as PDF.', 'info');
+    addEvent('ai', 'ai', 'Admin exported portfolio report (file download fallback).');
+  }
 }
 
 // ============================================================
